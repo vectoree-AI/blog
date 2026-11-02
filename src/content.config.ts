@@ -11,6 +11,34 @@ const docs = defineCollection({
       category: z.enum(categorySlugs).optional(),
       /** Optional topics. Not used as primary navigation. */
       tags: z.array(z.enum(tagSlugs)).optional(),
+      /**
+       * Right-rail labels, keyed by heading text or heading slug.
+       * Values should be questions. Headings in the article stay as written.
+       */
+      nav: z.record(z.string(), z.string()).optional(),
+      /** Short Q&A rendered after the article, with FAQPage schema. */
+      faq: z
+        .array(
+          z.object({
+            question: z.string(),
+            answer: z.string(),
+          }),
+        )
+        .optional(),
+      /** Extra links in the right rail (posts or product pages). */
+      links: z
+        .array(
+          z.object({
+            label: z.string(),
+            href: z.string(),
+          }),
+        )
+        .optional(),
+      /**
+       * Card cover in public/, e.g. /covers/my-post.svg.
+       * Omitted covers keep the newspaper icon on listing cards.
+       */
+      cover: z.string().optional(),
     }),
   }),
 });

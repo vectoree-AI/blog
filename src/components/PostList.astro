@@ -1,7 +1,8 @@
 ---
 import { getCollection } from 'astro:content';
-import { Card, CardGrid } from '@prosefly/astro-components';
+import { CardGrid } from '@prosefly/astro-components';
 import { categories, categoryBySlug, type CategorySlug } from '../lib/categories';
+import PostCard from './PostCard.astro';
 
 interface Props {
   /** Group cards into funnel stages. Listings stay in editorial order when false. */
@@ -27,10 +28,12 @@ function hrefFor(id: string) {
   return `/${id.replace(/\\/g, '/')}/`;
 }
 
-const groups = categories.map((category) => ({
-  ...category,
-  posts: posts.filter((post) => post.data.category === category.slug),
-}));
+const groups = categories
+  .map((category) => ({
+    ...category,
+    posts: posts.filter((post) => post.data.category === category.slug),
+  }))
+  .filter((group) => group.posts.length > 0);
 
 const uncategorized = posts.filter(
   (post) => !categoryBySlug(post.data.category as CategorySlug | undefined),
@@ -41,28 +44,28 @@ const uncategorized = posts.filter(
   posts.length > 0 ? (
     grouped ? (
       <div class="vt-post-groups">
-        <nav class="vt-stage-nav" aria-label="Post stages">
-          {categories.map((category) => (
-            <a href={`#${category.slug}`}>{category.label}</a>
-          ))}
-        </nav>
+        {groups.length > 0 && (
+          <nav class="vt-stage-nav" aria-label="Post stages">
+            {groups.map((category) => (
+              <a href={`#${category.slug}`}>{category.label}</a>
+            ))}
+          </nav>
+        )}
         {groups.map((group) => (
           <section class="vt-post-group" id={group.slug}>
             <h2 class="vt-post-group__title">{group.label}</h2>
             <p class="vt-post-group__blurb">{group.blurb}</p>
-            {group.posts.length > 0 ? (
-              <CardGrid>
-                {group.posts.map((post) => (
-                  <Card href={hrefFor(post.id)} icon="lucide:newspaper">
-                    <p class="vt-card-kicker">{group.label}</p>
-                    <p class="vt-card-title">{post.data.title}</p>
-                    <p class="vt-card-summary">{post.data.description}</p>
-                  </Card>
-                ))}
-              </CardGrid>
-            ) : (
-              <p class="vt-post-group__empty">No posts in this stage yet.</p>
-            )}
+            <CardGrid>
+              {group.posts.map((post) => (
+                <PostCard
+                  href={hrefFor(post.id)}
+                  kicker={group.label}
+                  title={post.data.title}
+                  summary={post.data.description}
+                  cover={post.data.cover}
+                />
+              ))}
+            </CardGrid>
           </section>
         ))}
         {uncategorized.length > 0 && (
@@ -70,10 +73,12 @@ const uncategorized = posts.filter(
             <h2 class="vt-post-group__title">Uncategorized</h2>
             <CardGrid>
               {uncategorized.map((post) => (
-                <Card href={hrefFor(post.id)} icon="lucide:newspaper">
-                  <p class="vt-card-title">{post.data.title}</p>
-                  <p class="vt-card-summary">{post.data.description}</p>
-                </Card>
+                <PostCard
+                  href={hrefFor(post.id)}
+                  title={post.data.title}
+                  summary={post.data.description}
+                  cover={post.data.cover}
+                />
               ))}
             </CardGrid>
           </section>
@@ -84,11 +89,13 @@ const uncategorized = posts.filter(
         {posts.map((post) => {
           const category = categoryBySlug(post.data.category);
           return (
-            <Card href={hrefFor(post.id)} icon="lucide:newspaper">
-              {category && <p class="vt-card-kicker">{category.label}</p>}
-              <p class="vt-card-title">{post.data.title}</p>
-              <p class="vt-card-summary">{post.data.description}</p>
-            </Card>
+            <PostCard
+              href={hrefFor(post.id)}
+              kicker={category?.label}
+              title={post.data.title}
+              summary={post.data.description}
+              cover={post.data.cover}
+            />
           );
         })}
       </CardGrid>

@@ -1,0 +1,123 @@
+---
+title: "Which Model Gets Which Step"
+description: "A practical routing card for agent builders: triage on a cheap default, everyday coding on Sonnet or Sol, hard judgment on Opus or Astra, and vectoree/auto when you do not want to pick yet."
+cover: /covers/which-model-gets-which-step.svg
+category: evaluate
+tags:
+  - models
+  - gateway
+  - agents
+  - integration
+sidebar:
+  label: "Which Model Gets Which Step"
+  order: 25
+nav:
+  stop-picking-one-model: "Why not one model for the whole agent?"
+  a-simple-routing-card: "How do I assign models to steps?"
+  when-to-use-auto: "When should I use vectoree/auto?"
+  how-to-try-without-rewiring: "How do I try a new model without rewiring?"
+  what-to-measure: "What should I measure after routing?"
+faq:
+  - question: Should every step use the strongest model?
+    answer: No. Strong models earn their keep on ambiguous or long-horizon work. Using them for triage and formatting burns budget and often adds latency without better outcomes.
+  - question: What is vectoree/auto for?
+    answer: A smart default when you have not pinned a slug yet, or when the step is interchangeable across several catalog rows. Pin a slug once a step has a clear quality or cost requirement.
+  - question: How do I change the model for one step?
+    answer: Keep one OpenAI-compatible client and one project key. Change only the model field to another catalog slug from search, or temporarily back to vectoree/auto.
+links:
+  - label: How do I call models through the gateway?
+    href: /posts/call-models-through-vectoree-gateway/
+  - label: What should I know about Sonnet 5.5?
+    href: /posts/claude-sonnet-5-5-ai-agents/
+  - label: Where does GPT-6.1 Sol fit?
+    href: /posts/gpt-6-1-sol-ai-agents/
+---
+
+import CtaRow from '../../../components/post/CtaRow.astro';
+import PostLink from '../../../components/post/PostLink.astro';
+
+Model launch posts tell you what a new slug can do. They rarely tell you which step of *your* agent should use it.
+
+This is a routing card, not another release note. The goal is a boring default: cheap where work is clear, stronger where judgment is the product, and one project key so swapping a step does not mean rewiring the stack. If you are still maintaining five provider SDKs, read [Why We Stopped Wiring Providers One by One](/posts/why-we-stopped-wiring-providers-one-by-one/) first.
+
+![Map agent steps to model roles: triage, everyday work, hard judgment, and multimodal — then pick a catalog slug per role.](/posts/which-model-gets-which-step/01-step-to-role.svg)
+
+<CtaRow />
+
+## Stop picking one model for the whole agent
+
+Agents are pipelines. A typical coding or ops agent might:
+
+1. Classify the request.
+2. Gather context (search, files, tickets).
+3. Draft a change.
+4. Review or decide whether to ship.
+5. Write the user-facing reply.
+
+Those jobs do not share the same failure mode. Triage fails by being slow or expensive. Drafting fails by being shallow. Review fails by being overconfident. One frontier model for all five steps is simple to configure and expensive to run — and it still leaves you without a cheap fallback when the catalog shifts.
+
+Treat the **step** as stable and the **model** as replaceable.
+
+## A simple routing card
+
+Use roles, then map today's catalog into them. Names below match posts already on this blog; always confirm the live slug with `npx @vectoree/cli ai models search …` before you pin anything in production.
+
+| Step role | What good looks like | Prefer | Avoid |
+| --- | --- | --- | --- |
+| Triage / classify | Fast, cheap, good enough labels | `vectoree/auto` or a flash / Luna-class row | Frontier models for every ticket |
+| Everyday coding & docs | Clear repro, scoped edits, summaries | [Claude Sonnet 5.5](/posts/claude-sonnet-5-5-ai-agents/) or [GPT-6.1 Sol](/posts/gpt-6-1-sol-ai-agents/) | Paying Astra/Opus prices for a one-file fix |
+| Hard judgment / long horizon | Ambiguous goals, careful plans, high cost of being wrong | [Claude Opus 5.5](/posts/claude-opus-5-5-what-developers-need-to-know/) or Astra-class rows ([GPT-6 Astra](/posts/gpt-6-astra-developers-ai-model/)) | Forcing a flash model to "think harder" with longer prompts alone |
+| Multimodal / voice / image | The modality is the product | Specialty rows (e.g. Live, Images) on the same project key | Spinning up a second vendor client "just for this step" |
+| Structured decide-then-act | Typed decision, then draft/search/store | Decision models such as [Jev](/posts/jev/) beside your writer model | Asking a general chat model to be both judge and novelist with no schema |
+
+![Routing card: triage cheap, everyday on Sonnet or Sol, hard judgment on Opus or Astra, specialty modalities on the same key.](/posts/which-model-gets-which-step/02-routing-card.svg)
+
+Rules of thumb we keep coming back to:
+
+- **Specify the job before the brand.** "Scoped bug with a repro" → Sonnet/Sol class. "Ambiguous multi-hour plan" → Opus/Astra class.
+- **Pin only what you measure.** If a step has no quality bar yet, start on `vectoree/auto`, then pin after you have traces.
+- **Do not promote the whole agent when one step fails.** Promote that step's slug. Leave triage alone.
+
+## When to use `vectoree/auto`
+
+`vectoree/auto` is for the steps you have not earned a strong opinion about yet — or for workloads where several catalog rows are interchangeable and you care more about availability and cost than a named brand.
+
+Use a pinned slug when:
+
+- Evaluations show a clear winner for that step.
+- Compliance or customer contracts name a model family.
+- Latency or price SLOs need a known ceiling.
+
+Leave auto (or a cheap default) on triage and formatting even after the hard steps are pinned. Homogeneous "everything on Opus" setups are how agent bills surprise finance.
+
+## How to try without rewiring
+
+Keep one OpenAI-compatible client pointed at the [Vectoree Model Gateway](/posts/call-models-through-vectoree-gateway/) with one project key from [CLI login and link](/posts/vectoree-cli-project-key-workflow/). Changing a step is changing the `model` string.
+
+```python
+# Same client. Only the slug changes per step.
+triage = client.chat.completions.create(
+    model="vectoree/auto",
+    messages=[{"role": "user", "content": classify_prompt}],
+)
+
+draft = client.chat.completions.create(
+    model="claude-sonnet-5-5",  # replace with the slug `ai models search` prints
+    messages=[{"role": "user", "content": draft_prompt}],
+)
+```
+
+If search prints nothing for a launch-day name, stay on `vectoree/auto` until the catalog row appears. Do not fork a second SDK "temporarily."
+
+<PostLink href="/posts/call-models-through-vectoree-gateway/">How do I point the SDK at one gateway?</PostLink>
+
+## What to measure
+
+Routing without measurement is folklore. For each pinned step, track:
+
+- **Task success** (tests green, human accept, ticket closed) — not just token counts.
+- **Cost per successful run** — so a cheaper model that retries twice does not look like a win.
+- **Latency to first useful action** — agents feel slow at the step users wait on, not at average tokens.
+- **Escalation rate** — how often triage hands off to the strong model; if everything escalates, your card is wrong.
+
+When a new Evaluate post lands on this blog, ask one question only: *which existing step does this slug threaten or improve?* If the answer is "none," it is news, not a routing change.

@@ -1,0 +1,108 @@
+---
+title: "Why We Stopped Wiring Providers One by One"
+description: "Five SDK clients, five env keys, five billing portals — and one agent that still could not switch models mid-run. What broke when we wired each provider by hand, and why a single gateway fixed the real problem."
+cover: /covers/why-we-stopped-wiring-providers-one-by-one.svg
+category: challenge
+tags:
+  - gateway
+  - models
+  - integration
+  - agents
+sidebar:
+  label: "Stop Wiring Providers One by One"
+  order: 20
+nav:
+  five-clients-five-keys: "What did wiring providers by hand look like?"
+  where-it-broke: "Where did the multi-SDK setup break?"
+  what-we-actually-needed: "What did we actually need instead?"
+  one-door-not-five: "What does one gateway change?"
+  what-we-kept: "What should you keep from the old habit?"
+faq:
+  - question: Is a gateway only about saving API keys?
+    answer: No. Keys are the visible pain. The deeper cost is five client shapes, five rate-limit behaviors, and no shared way to move a step to another model when the first one fails or prices shift.
+  - question: Do I still need provider accounts?
+    answer: You still choose models by catalog slug. The point is your app talks to one OpenAI-compatible endpoint and one project key, instead of embedding every vendor SDK in your agent loop.
+  - question: When is a direct provider SDK still fine?
+    answer: For a single-vendor spike or a demo that will never change models. The moment you need failover, cost routing, or a second modality on the same credential, the hand-wired stack starts to tax every change.
+links:
+  - label: How do I call models through one gateway?
+    href: /posts/call-models-through-vectoree-gateway/
+  - label: How do I mint the project key?
+    href: /posts/vectoree-cli-project-key-workflow/
+---
+
+import CtaRow from '../../../components/post/CtaRow.astro';
+import PostLink from '../../../components/post/PostLink.astro';
+
+The first agent we shipped had one model and one provider. That was fine. The second agent needed a cheaper triage step. The third needed a stronger coder. By the time we added speech and images, the "temporary" stack was five clients, five environment variables, and five places to look when something failed.
+
+This is not a tutorial for the Vectoree Model Gateway. It is what we learned before we stopped wiring each provider by hand.
+
+![Five separate provider clients and keys collapse into one OpenAI-compatible endpoint and one project key.](/posts/why-we-stopped-wiring-providers-one-by-one/01-five-clients-to-one.svg)
+
+<CtaRow />
+
+## Five clients, five keys
+
+Hand-wiring looked responsible at first.
+
+- One OpenAI client for chat.
+- One Anthropic client for long coding passes.
+- One Google client for multimodal spikes.
+- Separate keys in `.env`, CI, and the laptop of whoever last rotated them.
+- A small `if model.startswith(...)` router that grew a new branch every week.
+
+Each provider SDK was fine alone. Together they became a second product: translate messages, normalize tool calls, map errors, and remember which key belonged to which environment.
+
+The agent did not care about any of that. It only cared whether step three could run when step two timed out.
+
+## Where it broke
+
+The breaks were boring, which made them expensive.
+
+**Rotation tax.** A leaked key meant hunting every secret store that still held the old value. We never rotated all five on the same day without breaking something.
+
+**Shape tax.** Tool-call JSON, streaming chunks, and refusal shapes differed enough that "just swap the model" was a day of glue, not a config change.
+
+**Billing tax.** Cost lived in five portals. Nobody could answer "what did this agent spend last week?" without a spreadsheet.
+
+**Failover tax.** When one provider slowed down, the router still pointed at it. Moving a step meant editing code, not picking another slug.
+
+**Browser temptation.** Someone always suggested putting a key in the client "just for the demo." That is how demos become incidents.
+
+![The real cost of hand-wiring is rotation, shape, billing, and failover tax — not just more env vars.](/posts/why-we-stopped-wiring-providers-one-by-one/02-four-taxes.svg)
+
+## What we actually needed
+
+We did not need a prettier `switch` statement. We needed one contract the agent could trust:
+
+| Need | Hand-wired stack | What we wanted |
+| --- | --- | --- |
+| Credential | One key per provider | One project-scoped key |
+| Client | One SDK per vendor | One OpenAI-compatible client |
+| Model choice | Hard-coded branches | Catalog slug (or auto) |
+| Spend | Five invoices | One wallet / project view |
+| Failover | Code change | Change the slug or routing policy |
+
+That is infrastructure, not prompt craft. Assistants can live on a single chat API. Agents that plan, call tools, and retry steps need the model layer to stay boring.
+
+## One door, not five
+
+A model gateway is that door: one `base_url`, one project key, many catalog slugs. The app stops caring which vendor sits behind a step. You still pick models deliberately — you just stop rewiring the agent every time the pick changes.
+
+How to point an OpenAI SDK at that door, browse the catalog, and keep the key on the server is covered in [Call Models Through the Vectoree Gateway](/posts/call-models-through-vectoree-gateway/). Minting the project key with login and link is in [From Zero to a Project Key with the Vectoree CLI](/posts/vectoree-cli-project-key-workflow/).
+
+The lesson is not "delete every provider SDK tomorrow." The lesson is: once your agent needs more than one model family, hand-wiring becomes the feature you maintain instead of the product.
+
+<PostLink href="/posts/call-models-through-vectoree-gateway/">How do I call models through one gateway?</PostLink>
+
+## What we kept
+
+A few habits survived the cleanup, and they still matter.
+
+- **Server-side keys only.** Never `NEXT_PUBLIC_`, never a browser bundle.
+- **Project scope over personal keys.** Agents and teammates should share a project credential, not a founder's laptop env.
+- **Explicit steps, flexible models.** Name the job of each step; treat the model as a replaceable worker.
+- **Measure spend per project.** If you cannot see cost, you cannot defend routing choices.
+
+If you are still pasting a new provider key every month, the pain is not imaginary. Collapse the door first. Then decide [which model gets which step](/posts/which-model-gets-which-step/).
